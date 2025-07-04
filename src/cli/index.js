@@ -3,7 +3,6 @@
 const { Command } = require('commander');
 const path = require('path');
 const fs = require('fs-extra');
-const open = require('open');
 const server = require('./server');
 const { createIconStudioFolder } = require('../utils/fileSystem');
 
@@ -32,18 +31,23 @@ program
       const port = parseInt(options.port);
       const serverInstance = await server.start(port, workingDir);
 
-      console.log(`<¨ Icon Studio started at http://localhost:${port}`);
-      console.log(`=Á Working directory: ${workingDir}`);
-      console.log(`=¾ Icon history: ${path.join(workingDir, '.icon-studio')}`);
+      console.log(`<ï¿½ Icon Studio started at http://localhost:${port}`);
+      console.log(`=ï¿½ Working directory: ${workingDir}`);
+      console.log(`=ï¿½ Icon history: ${path.join(workingDir, '.icon-studio')}`);
 
       // Open browser if not disabled
       if (options.open) {
-        await open(`http://localhost:${port}`);
+        try {
+          const open = await import('open');
+          await open.default(`http://localhost:${port}`);
+        } catch (error) {
+          console.log('Could not auto-open browser. Please visit: http://localhost:' + port);
+        }
       }
 
       // Handle graceful shutdown
       process.on('SIGINT', () => {
-        console.log('\n=Ñ Shutting down Icon Studio...');
+        console.log('\n=ï¿½ Shutting down Icon Studio...');
         serverInstance.close(() => {
           process.exit(0);
         });

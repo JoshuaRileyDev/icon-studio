@@ -42,10 +42,20 @@ class ChatGPTService {
       const imageUrl = response.data[0].url;
       
       // Download the image
-      const imageResponse = await fetch(imageUrl);
-      const imageBuffer = await imageResponse.arrayBuffer();
+      const https = require('https');
+      const http = require('http');
       
-      return Buffer.from(imageBuffer);
+      const imageBuffer = await new Promise((resolve, reject) => {
+        const client = imageUrl.startsWith('https:') ? https : http;
+        client.get(imageUrl, (response) => {
+          const chunks = [];
+          response.on('data', (chunk) => chunks.push(chunk));
+          response.on('end', () => resolve(Buffer.concat(chunks)));
+          response.on('error', reject);
+        }).on('error', reject);
+      });
+      
+      return imageBuffer;
     } catch (error) {
       console.error('Error generating icon:', error);
       throw new Error(`Failed to generate icon: ${error.message}`);
