@@ -5,23 +5,45 @@ const glob = require('glob');
 
 class XcodeIntegrationService {
   constructor() {
-    // iOS icon sizes and their file names
+    // Complete iOS icon sizes with proper naming for Contents.json compatibility
     this.iosSizes = [
-      { size: 20, scale: 1, filename: 'icon_20pt.png' },
-      { size: 20, scale: 2, filename: 'icon_20pt@2x.png' },
-      { size: 20, scale: 3, filename: 'icon_20pt@3x.png' },
-      { size: 29, scale: 1, filename: 'icon_29pt.png' },
-      { size: 29, scale: 2, filename: 'icon_29pt@2x.png' },
-      { size: 29, scale: 3, filename: 'icon_29pt@3x.png' },
-      { size: 40, scale: 1, filename: 'icon_40pt.png' },
-      { size: 40, scale: 2, filename: 'icon_40pt@2x.png' },
-      { size: 40, scale: 3, filename: 'icon_40pt@3x.png' },
-      { size: 60, scale: 2, filename: 'icon_60pt@2x.png' },
-      { size: 60, scale: 3, filename: 'icon_60pt@3x.png' },
-      { size: 76, scale: 1, filename: 'icon_76pt.png' },
-      { size: 76, scale: 2, filename: 'icon_76pt@2x.png' },
-      { size: 83.5, scale: 2, filename: 'icon_83.5@2x.png' },
-      { size: 1024, scale: 1, filename: 'icon_1024pt.png' }
+      // iPhone Notification
+      { size: 20, scale: 2, filename: 'notification-icon@2x.png', idiom: 'iphone' },
+      { size: 20, scale: 3, filename: 'notification-icon@3x.png', idiom: 'iphone' },
+      
+      // iPhone Settings
+      { size: 29, scale: 2, filename: 'settings-icon@2x.png', idiom: 'iphone' },
+      { size: 29, scale: 3, filename: 'settings-icon@3x.png', idiom: 'iphone' },
+      
+      // iPhone Spotlight
+      { size: 40, scale: 2, filename: 'spotlight-icon@2x.png', idiom: 'iphone' },
+      { size: 40, scale: 3, filename: 'spotlight-icon@3x.png', idiom: 'iphone' },
+      
+      // iPhone App
+      { size: 60, scale: 2, filename: 'app-icon@2x.png', idiom: 'iphone' },
+      { size: 60, scale: 3, filename: 'app-icon@3x.png', idiom: 'iphone' },
+      
+      // iPad Notification
+      { size: 20, scale: 1, filename: 'ipad-notification-icon.png', idiom: 'ipad' },
+      { size: 20, scale: 2, filename: 'ipad-notification-icon@2x.png', idiom: 'ipad' },
+      
+      // iPad Settings
+      { size: 29, scale: 1, filename: 'ipad-settings-icon.png', idiom: 'ipad' },
+      { size: 29, scale: 2, filename: 'ipad-settings-icon@2x.png', idiom: 'ipad' },
+      
+      // iPad Spotlight
+      { size: 40, scale: 1, filename: 'ipad-spotlight-icon.png', idiom: 'ipad' },
+      { size: 40, scale: 2, filename: 'ipad-spotlight-icon@2x.png', idiom: 'ipad' },
+      
+      // iPad App
+      { size: 76, scale: 1, filename: 'ipad-app-icon.png', idiom: 'ipad' },
+      { size: 76, scale: 2, filename: 'ipad-app-icon@2x.png', idiom: 'ipad' },
+      
+      // iPad Pro App
+      { size: 83.5, scale: 2, filename: 'ipad-pro-app-icon@2x.png', idiom: 'ipad' },
+      
+      // App Store (Marketing)
+      { size: 1024, scale: 1, filename: 'app-store-icon.png', idiom: 'ios-marketing' }
     ];
   }
 
@@ -39,48 +61,95 @@ class XcodeIntegrationService {
 
       // Generate all required sizes
       const generatedIcons = [];
+      console.log(`Generating ${this.iosSizes.length} icon sizes...`);
+      
       for (const iconSpec of this.iosSizes) {
         const pixelSize = Math.round(iconSpec.size * iconSpec.scale);
         const outputPath = path.join(exportDir, iconSpec.filename);
         
-        await sharp(iconPath)
+        // Special handling for App Store icon (1024x1024) - highest quality
+        const isAppStoreIcon = iconSpec.size === 1024;
+        
+        const sharpInstance = sharp(iconPath)
           .resize(pixelSize, pixelSize, {
-            fit: 'fill',
+            fit: 'cover',
+            position: 'center',
             background: { r: 0, g: 0, b: 0, alpha: 0 }
-          })
-          .png()
-          .toFile(outputPath);
+          });
+        
+        if (isAppStoreIcon) {
+          // Maximum quality for App Store icon
+          await sharpInstance
+            .png({ 
+              quality: 100, 
+              compressionLevel: 0,
+              palette: false 
+            })
+            .toFile(outputPath);
+        } else {
+          // High quality for other icons
+          await sharpInstance
+            .png({ 
+              quality: 95,
+              compressionLevel: 6 
+            })
+            .toFile(outputPath);
+        }
         
         generatedIcons.push({
           filename: iconSpec.filename,
           size: `${iconSpec.size}pt`,
           scale: `${iconSpec.scale}x`,
           pixels: `${pixelSize}x${pixelSize}`,
-          path: outputPath
+          path: outputPath,
+          idiom: iconSpec.idiom,
+          isAppStore: isAppStoreIcon
         });
       }
+      
+      console.log(`Generated ${generatedIcons.length} icon files`);
 
       // Try to find and update Xcode projects
       const xcodeProjects = await this.findXcodeProjects(workingDir);
       let updatedProjects = [];
 
+      let totalRemovedFiles = 0;
+      let totalAddedFiles = 0;
+      const updateDetails = [];
+
       for (const project of xcodeProjects) {
         try {
-          const updated = await this.updateXcodeProject(project, exportDir);
-          if (updated) {
+          const result = await this.updateXcodeProject(project, exportDir);
+          if (result && typeof result === 'object') {
             updatedProjects.push(project);
+            totalRemovedFiles += result.removedFiles || 0;
+            totalAddedFiles += result.addedFiles || 0;
+            updateDetails.push({
+              project: path.basename(project),
+              ...result
+            });
           }
         } catch (error) {
           console.warn(`Failed to update project ${project}:`, error.message);
+          updateDetails.push({
+            project: path.basename(project),
+            error: error.message
+          });
         }
       }
+
+      const appStoreIcon = generatedIcons.find(icon => icon.isAppStore);
 
       return {
         generatedIcons,
         exportDir,
         xcodeProjects,
         updatedProjects,
-        message: `Generated ${generatedIcons.length} icon sizes. ${updatedProjects.length} Xcode projects updated.`
+        updateDetails,
+        totalRemovedFiles,
+        totalAddedFiles,
+        appStoreIcon,
+        message: `Generated ${generatedIcons.length} icon sizes including App Store 1024x1024. Replaced ${totalRemovedFiles} old icons with ${totalAddedFiles} new ones in ${updatedProjects.length} Xcode project(s).`
       };
 
     } catch (error) {
@@ -125,54 +194,72 @@ class XcodeIntegrationService {
 
       // Update the first AppIcon.appiconset found
       const appiconSet = appiconSets[0];
-      await this.replaceAppIconSet(appiconSet, iconSourceDir);
+      const replacementResult = await this.replaceAppIconSet(appiconSet, iconSourceDir);
       
-      return true;
+      return {
+        appiconSetPath: appiconSet,
+        ...replacementResult
+      };
     } catch (error) {
       throw new Error(`Failed to update Xcode project: ${error.message}`);
     }
   }
 
   async replaceAppIconSet(appiconSetPath, iconSourceDir) {
-    // Copy all generated icons to the AppIcon.appiconset directory
+    console.log(`Replacing app icon set at: ${appiconSetPath}`);
+    
+    // First, remove ALL existing PNG files in the AppIcon.appiconset
+    const existingFiles = await fs.readdir(appiconSetPath);
+    const pngFiles = existingFiles.filter(file => file.endsWith('.png'));
+    
+    console.log(`Removing ${pngFiles.length} existing icon files...`);
+    for (const file of pngFiles) {
+      const filePath = path.join(appiconSetPath, file);
+      await fs.remove(filePath);
+    }
+
+    // Copy all our generated icons to the AppIcon.appiconset directory
     const sourceFiles = await fs.readdir(iconSourceDir);
+    const copiedFiles = [];
     
     for (const file of sourceFiles) {
       if (file.endsWith('.png')) {
         const sourcePath = path.join(iconSourceDir, file);
         const destPath = path.join(appiconSetPath, file);
         await fs.copy(sourcePath, destPath);
+        copiedFiles.push(file);
       }
     }
+    
+    console.log(`Copied ${copiedFiles.length} new icon files`);
 
-    // Update Contents.json if it exists
+    // Create a comprehensive Contents.json with all our icons
+    await this.createContentsJson(appiconSetPath);
+    
+    return { removedFiles: pngFiles.length, addedFiles: copiedFiles.length };
+  }
+
+  async createContentsJson(appiconSetPath) {
     const contentsPath = path.join(appiconSetPath, 'Contents.json');
-    if (await fs.pathExists(contentsPath)) {
-      const contents = await fs.readJson(contentsPath);
-      
-      // Update the images array with our generated icons
-      if (contents.images) {
-        contents.images = contents.images.map(image => {
-          const size = parseFloat(image.size?.split('x')[0] || 0);
-          const scale = parseFloat(image.scale?.replace('x', '') || 1);
-          
-          const matchingIcon = this.iosSizes.find(icon => 
-            icon.size === size && icon.scale === scale
-          );
-          
-          if (matchingIcon) {
-            return {
-              ...image,
-              filename: matchingIcon.filename
-            };
-          }
-          
-          return image;
-        });
+    
+    // Create a complete Contents.json with all icon sizes
+    const contents = {
+      images: this.iosSizes.map(iconSpec => ({
+        filename: iconSpec.filename,
+        idiom: iconSpec.idiom,
+        scale: `${iconSpec.scale}x`,
+        size: iconSpec.size === 83.5 ? "83.5x83.5" : `${iconSpec.size}x${iconSpec.size}`
+      })),
+      info: {
+        author: "icon-studio",
+        version: 1
       }
-      
-      await fs.writeJson(contentsPath, contents, { spaces: 2 });
-    }
+    };
+    
+    await fs.writeJson(contentsPath, contents, { spaces: 2 });
+    console.log('Created new Contents.json with complete icon set');
+    
+    return contents;
   }
 }
 

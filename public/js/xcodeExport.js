@@ -52,7 +52,7 @@ class XcodeExporter {
         if (projects.length === 0) {
             projectInfo.innerHTML = `
                 <div style="color: #b45309;">
-                    <strong>† No Xcode projects found</strong><br>
+                    <strong>ÔøΩ No Xcode projects found</strong><br>
                     Make sure you're running Icon Studio from a directory containing an Xcode project.
                 </div>
             `;
@@ -135,11 +135,13 @@ class XcodeExporter {
 
     showExportSuccess(result) {
         const message = `
-            <â iOS Export Complete!
+            <ÔøΩ iOS Export Complete!
             
             Generated: ${result.generatedIcons.length} icon sizes
-            Updated: ${result.updatedProjects.length} Xcode project(s)
-            Location: ${this.shortenPath(result.exportDir)}
+            Replaced: ${result.totalRemovedFiles || 0} old icons
+            Added: ${result.totalAddedFiles || 0} new icons
+            Projects: ${result.updatedProjects.length} updated
+            ${result.appStoreIcon ? '‚ú® App Store 1024x1024 included!' : ''}
         `;
         
         app.showToast(message, 'success');
@@ -182,20 +184,35 @@ class XcodeExporter {
         `;
         
         resultsContent.innerHTML = `
-            <h3 style="margin-bottom: 1rem; color: #059669;"><â iOS Export Results</h3>
+            <h3 style="margin-bottom: 1rem; color: #059669;"><ÔøΩ iOS Export Results</h3>
             
             <div style="margin-bottom: 1.5rem;">
                 <h4>Generated Icon Sizes (${result.generatedIcons.length})</h4>
+                ${result.appStoreIcon ? `
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+                        <div style="color: #166534; font-weight: 500;">‚ú® App Store Icon: ${result.appStoreIcon.pixels} (Premium Quality)</div>
+                        <div style="color: #16a34a; font-size: 0.875rem;">Ready for App Store submission</div>
+                    </div>
+                ` : ''}
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; margin-top: 0.5rem;">
                     ${result.generatedIcons.map(icon => `
-                        <div style="text-align: center; padding: 0.5rem; background: #f8fafc; border-radius: 6px; font-size: 0.75rem;">
-                            <div style="font-weight: 500;">${icon.pixels}</div>
+                        <div style="text-align: center; padding: 0.5rem; background: ${icon.isAppStore ? '#fef3c7' : '#f8fafc'}; border-radius: 6px; font-size: 0.75rem; ${icon.isAppStore ? 'border: 1px solid #fcd34d;' : ''}">
+                            <div style="font-weight: 500;">${icon.pixels}${icon.isAppStore ? ' üè™' : ''}</div>
                             <div style="color: #64748b;">${icon.size} @ ${icon.scale}</div>
+                            ${icon.idiom ? `<div style="color: #9ca3af; font-size: 0.6rem;">${icon.idiom}</div>` : ''}
                         </div>
                     `).join('')}
                 </div>
             </div>
             
+            <div style="margin-bottom: 1.5rem;">
+                <h4>Icon Replacement Summary</h4>
+                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+                    <div style="color: #92400e; font-weight: 500;">üîÑ Replaced ${result.totalRemovedFiles || 0} old icons with ${result.totalAddedFiles || 0} new ones</div>
+                    <div style="color: #b45309; font-size: 0.875rem;">All existing icons completely replaced with your new design</div>
+                </div>
+            </div>
+
             <div style="margin-bottom: 1.5rem;">
                 <h4>Updated Xcode Projects (${result.updatedProjects.length})</h4>
                 ${result.updatedProjects.length > 0 ? `
