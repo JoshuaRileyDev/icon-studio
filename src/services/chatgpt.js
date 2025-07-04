@@ -3,12 +3,28 @@ require('dotenv').config();
 
 class ChatGPTService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    this.openai = null;
+    this.apiKey = null;
+    this.initialize();
+  }
+
+  initialize(apiKey = null) {
+    const key = apiKey || process.env.OPENAI_API_KEY;
+    if (key) {
+      this.apiKey = key;
+      this.openai = new OpenAI({ apiKey: key });
+    }
+  }
+
+  isConfigured() {
+    return this.openai !== null && this.apiKey !== null;
   }
 
   async generateIcon(prompt, style = 'modern', size = '1024x1024') {
+    if (!this.isConfigured()) {
+      throw new Error('OpenAI API key not configured. Please add your API key to use AI generation features.');
+    }
+
     try {
       // Enhance prompt for better icon generation
       const enhancedPrompt = this.enhancePrompt(prompt, style);
@@ -61,11 +77,11 @@ class ChatGPTService {
   }
 
   async testConnection() {
+    if (!this.isConfigured()) {
+      throw new Error('OpenAI API key not configured');
+    }
+
     try {
-      if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY environment variable is not set');
-      }
-      
       // Test with a simple completion
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -77,6 +93,17 @@ class ChatGPTService {
     } catch (error) {
       throw new Error(`OpenAI connection failed: ${error.message}`);
     }
+  }
+
+  setApiKey(apiKey) {
+    this.initialize(apiKey);
+  }
+
+  getStatus() {
+    return {
+      configured: this.isConfigured(),
+      hasKey: !!this.apiKey
+    };
   }
 }
 

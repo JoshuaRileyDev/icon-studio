@@ -3,6 +3,7 @@ class IconStudio {
     constructor() {
         this.currentIcon = null;
         this.projectInfo = null;
+        this.aiStatus = null;
         this.init();
     }
 
@@ -10,12 +11,14 @@ class IconStudio {
         await this.loadProjectInfo();
         this.bindEvents();
         await this.loadIconHistory();
+        this.updateAIStatus();
     }
 
     async loadProjectInfo() {
         try {
             const response = await fetch('/api/project');
             this.projectInfo = await response.json();
+            this.aiStatus = this.projectInfo.aiStatus;
             
             document.getElementById('project-info').textContent = 
                 `Working in: ${this.projectInfo.metadata.projectName}`;
@@ -43,9 +46,44 @@ class IconStudio {
         document.getElementById('use-for-ios').addEventListener('click', () => {
             this.exportToIOS();
         });
+
+        // Settings modal
+        document.getElementById('settings-btn').addEventListener('click', () => {
+            this.openSettings();
+        });
+
+        document.getElementById('close-settings').addEventListener('click', () => {
+            this.closeSettings();
+        });
+
+        // Settings functionality
+        document.getElementById('save-api-key').addEventListener('click', () => {
+            this.saveApiKey();
+        });
+
+        document.getElementById('remove-api-key').addEventListener('click', () => {
+            this.removeApiKey();
+        });
+
+        document.getElementById('toggle-key-visibility').addEventListener('click', () => {
+            this.toggleKeyVisibility();
+        });
+
+        // Close modal on overlay click
+        document.getElementById('settings-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'settings-modal') {
+                this.closeSettings();
+            }
+        });
     }
 
     async generateIcon() {
+        if (!this.aiStatus || !this.aiStatus.configured) {
+            this.showToast('Please configure your OpenAI API key in Settings to use AI generation', 'error');
+            this.openSettings();
+            return;
+        }
+
         const prompt = document.getElementById('prompt').value.trim();
         const style = document.getElementById('style').value;
 
@@ -192,6 +230,133 @@ class IconStudio {
         setTimeout(() => {
             toast.remove();
         }, 5000);
+    }
+
+    // Settings and AI Configuration
+    async updateAIStatus() {
+        try {
+            const response = await fetch('/api/ai/status');
+            this.aiStatus = await response.json();
+            
+            this.updateAIUI();
+        } catch (error) {
+            console.error('Failed to get AI status:', error);
+        }
+    }
+
+    updateAIUI() {
+        const aiSection = document.getElementById('ai-generation');
+        const generateBtn = document.getElementById('generate-btn');
+        
+        if (this.aiStatus && this.aiStatus.configured) {
+            aiSection.classList.remove('ai-disabled');
+            if (generateBtn) generateBtn.disabled = false;
+        } else {
+            aiSection.classList.add('ai-disabled');
+            if (generateBtn) generateBtn.disabled = true;
+        }
+        
+        // Update settings modal if open
+        this.updateSettingsStatus();
+    }
+
+    updateSettingsStatus() {
+        const statusEl = document.getElementById('ai-config-status');
+        if (!statusEl) return;
+        
+        if (this.aiStatus && this.aiStatus.configured) {
+            statusEl.className = 'status-indicator configured';
+            statusEl.textContent = '✅ OpenAI API key is configured and working';
+        } else {
+            statusEl.className = 'status-indicator not-configured';
+            statusEl.textContent = '❌ OpenAI API key not configured - AI features disabled';
+        }
+    }
+
+    openSettings() {
+        this.updateSettingsStatus();
+        document.getElementById('settings-modal').style.display = 'flex';
+    }
+
+    closeSettings() {
+        document.getElementById('settings-modal').style.display = 'none';
+        document.getElementById('openai-key').value = '';
+    }
+
+    async saveApiKey() {
+        const apiKey = document.getElementById('openai-key').value.trim();
+        
+        if (!apiKey) {
+            this.showToast('Please enter an API key', 'error');
+            return;
+        }
+
+        this.showLoading('Testing API key...');
+
+        try {
+            const response = await fetch('/api/ai/configure', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ apiKey })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.aiStatus = result.status;
+                this.updateAIUI();
+                this.showToast('API key saved and tested successfully!', 'success');
+                this.closeSettings();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('Failed to save API key:', error);
+            this.showToast('Failed to save API key: ' + error.message, 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async removeApiKey() {
+        if (!confirm('Are you sure you want to remove the OpenAI API key? This will disable AI generation features.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/ai/configure', {
+                method: 'DELETE'
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                this.aiStatus = result.status;
+                this.updateAIUI();
+                this.showToast('API key removed', 'info');
+                this.closeSettings();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('Failed to remove API key:', error);
+            this.showToast('Failed to remove API key: ' + error.message, 'error');
+        }
+    }
+
+    toggleKeyVisibility() {
+        const keyInput = document.getElementById('openai-key');
+        const toggleBtn = document.getElementById('toggle-key-visibility');
+        
+        if (keyInput.type === 'password') {
+            keyInput.type = 'text';
+            toggleBtn.textContent = '🙈';
+        } else {
+            keyInput.type = 'password';
+            toggleBtn.textContent = '👁️';
+        }
     }
 }
 
