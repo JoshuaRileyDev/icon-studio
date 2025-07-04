@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icon Studio</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo"><¨ Icon Studio</h1>
+                <div class="header-info">
+                    <span id="project-info">Loading...</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="sidebar">
+                <div class="generation-section">
+                    <h2>Create Icon</h2>
+                    
+                    <!-- AI Generation -->
+                    <div class="generation-method">
+                        <h3>> AI Generation</h3>
+                        <form id="ai-form">
+                            <div class="form-group">
+                                <label for="prompt">Describe your icon:</label>
+                                <textarea id="prompt" placeholder="e.g., A modern camera icon with clean lines"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="style">Style:</label>
+                                <select id="style">
+                                    <option value="modern">Modern</option>
+                                    <option value="flat">Flat Design</option>
+                                    <option value="gradient">Gradient</option>
+                                    <option value="outline">Outline</option>
+                                    <option value="filled">Filled</option>
+                                    <option value="sketch">Sketch</option>
+                                    <option value="corporate">Corporate</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Generate Icon</button>
+                        </form>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="generation-method">
+                        <h3>=Á Upload Image</h3>
+                        <div id="drop-zone" class="drop-zone">
+                            <p>Drag & drop an image here, or click to select</p>
+                            <input type="file" id="file-input" accept="image/*" hidden>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="history-section">
+                    <h2>Recent Icons</h2>
+                    <div id="icon-history" class="icon-history">
+                        <!-- History items will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="workspace">
+                <div class="preview-section">
+                    <h2>Preview</h2>
+                    <div id="preview-area" class="preview-area">
+                        <div class="preview-placeholder">
+                            <p>Generate or upload an icon to see preview</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="export-section">
+                    <h2>Export</h2>
+                    <div id="export-controls" class="export-controls" style="display: none;">
+                        <div class="export-options">
+                            <h3>Format Options</h3>
+                            <div class="format-buttons">
+                                <button class="btn btn-secondary" data-format="png">PNG</button>
+                                <button class="btn btn-secondary" data-format="svg">SVG</button>
+                                <button class="btn btn-secondary" data-format="ico">ICO</button>
+                            </div>
+                        </div>
+                        
+                        <div class="ios-export">
+                            <h3>iOS Xcode Integration</h3>
+                            <p>Generate all required iOS icon sizes and replace your app's icon assets.</p>
+                            <button id="use-for-ios" class="btn btn-success">Use This Icon for iOS</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading overlay -->
+        <div id="loading-overlay" class="loading-overlay" style="display: none;">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p id="loading-text">Generating icon...</p>
+            </div>
+        </div>
+
+        <!-- Toast notifications -->
+        <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/iconGenerator.js"></script>
+    <script src="/js/dragDrop.js"></script>
+    <script src="/js/xcodeExport.js"></script>
+</body>
+</html>
